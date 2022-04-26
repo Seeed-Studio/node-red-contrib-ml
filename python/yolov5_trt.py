@@ -14,7 +14,9 @@ import pycuda.autoinit
 import pycuda.driver as cuda
 import tensorrt as trt
 import imagezmq
-
+import traceback
+import argparse
+import json
 
 from dataloaders import LoadImages,LoadWebcam,LoadStreams
 
@@ -153,14 +155,25 @@ class YoLov5TRT(object):
         #     np.copyto(batch_input_image[i], input_image)
         # batch_input_image = np.ascontiguousarray(batch_input_image)
 
-        batch_origin_h.append(raw_image_generator.shape[1])
-        batch_origin_w.append(raw_image_generator.shape[2])
-        raw_image_generator = raw_image_generator / 255
-        raw_image_generator = raw_image_generator[None]
+        batch_input_image = np.empty(shape=[self.batch_size, 3, self.input_h, self.input_w])
+        input_image, image_raw, origin_h, origin_w = self.preprocess_image(raw_image_generator)
+        batch_image_raw.append(image_raw)
+        batch_origin_h.append(origin_h)
+        batch_origin_w.append(origin_w)
+        np.copyto(batch_input_image, input_image)
+        batch_input_image = np.ascontiguousarray(batch_input_image)
+
+
+
+        # batch_origin_h.append(raw_image_generator.shape[1])
+        # batch_origin_w.append(raw_image_generator.shape[2])
+        # raw_image_generator = raw_image_generator / 255
+        # raw_image_generator = raw_image_generator[None]
 
 
         # Copy input image to host buffer
-        np.copyto(host_inputs[0], raw_image_generator.ravel())
+        #np.copyto(host_inputs[0], raw_image_generator.ravel())
+        np.copyto(host_inputs[0], batch_input_image.ravel())
         start = time.time()
         # Transfer input data  to the GPU.
         cuda.memcpy_htod_async(cuda_inputs[0], host_inputs[0], stream)
@@ -423,6 +436,48 @@ class warmUpThread(threading.Thread):
         print('warm_up, time->{:.2f}ms'.format(t * 1000))
 
 
+
+# Helper class implementing an IO deamon thread
+class VideoStreamSubscriber:
+
+    def __init__(self, hostname, port):
+        self.hostname = hostname
+        self.port = port
+        self._stop = False
+        self._data_ready = threading.Event()
+        self._thread = threading.Thread(target=self._run, args=())
+        self._thread.daemon = True
+        self._thread.start()
+
+    def receive(self, timeout=15.0):
+        flag = self._data_ready.wait(timeout=timeout)
+        if not flag:
+            raise TimeoutError(
+                "Timeout while reading from subscriber tcp://{}:{}".format(self.hostname, self.port))
+        self._data_ready.clear()
+        return self._data
+
+    def _run(self):
+        receiver = imagezmq.ImageHub("tcp://{}:{}".format(self.hostname, self.port), REQ_REP=False)
+        while not self._stop:
+            self._data = receiver.recv_jpg()
+            self._data_ready.set()
+        receiver.close()
+
+    def close(self):
+        self._stop = True
+
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='broadcast OpenCV stream using PUB SUB.')
+    parser.add_argument('--port', type=int, required=True, help='video stream broadcast port')
+    parser.add_argument('--source', type=str, default='data/images', help='file/dir/URL/glob, 0 for webcam')
+    args = parser.parse_args()
+
+    return args.port, args.source
+
+
 if __name__ == "__main__":
     # load custom plugin and engine
     PLUGIN_LIBRARY = "build/libmyplugins.so"
@@ -451,8 +506,14 @@ if __name__ == "__main__":
         shutil.rmtree('output/')
     os.makedirs('output/')
     #dataloader = LoadImages("samples/", img_size=640,auto=False)
-    dataloader =  LoadWebcam("0",stride=32)
-    sender = imagezmq.ImageSender(connect_to='tcp://localhost:5555')  # change to IP address and port of server thread
+    # dataloader =  LoadWebcam("0",stride=32)
+    # sender = imagezmq.ImageSender(connect_to='tcp://localhost:5555')  # change to IP address and port of server thread
+
+    # send_port, source = parse_args()
+    sender = imagezmq.ImageSender("tcp://*:{}".format(5566), REQ_REP=False)
+
+
+
     cam_id = 'Camera 1'  # this name will be displayed on the corresponding camera stream
     # a YoLov5TRT instance
     yolov5_wrapper = YoLov5TRT(engine_file_path)
@@ -473,23 +534,76 @@ if __name__ == "__main__":
         #     thread1.start()
         #     thread1.join()
 
-        for path, im, im0s, vid_cap, s in dataloader:
-            result_boxes, result_scores, result_classid, t = yolov5_wrapper.infer(im)
-            print(result_boxes.shape)
-            print(result_scores.shape)
-            print(result_classid.shape)
-            print('real infer, time->{:.2f}ms'.format(t * 1000))
-            for j in range(len(result_boxes)):
-                box = result_boxes[j]
-                plot_one_box(
-                    box,
-                    im0s,
-                    label="{}:{:.2f}".format(
-                        categories[int(result_classid[j])], result_scores[j]
-                    ),
-                )
-            sender.send_image(cam_id, im0s)
+        # for path, im, im0s, vid_cap, s in dataloader:
+        #     result_boxes, result_scores, result_classid, t = yolov5_wrapper.infer(im)
+        #     print(result_boxes.shape)
+        #     print(result_scores.shape)
+        #     print(result_classid.shape)
+        #     print('real infer, time->{:.2f}ms'.format(t * 1000))
+        #     for j in range(len(result_boxes)):
+        #         box = result_boxes[j]
+        #         plot_one_box(
+        #             box,
+        #             im0s,
+        #             label="{}:{:.2f}".format(
+        #                 categories[int(result_classid[j])], result_scores[j]
+        #             ),
+        #         )
+        #     sender.send_image(cam_id, im0s)
 
+        # Receive from broadcast
+        # There are 2 hostname styles; comment out the one you don't need
+        hostname = "127.0.0.1"  # Use to receive from localhost
+        # hostname = "192.168.86.38"  # Use to receive from other computer
+        port = 5555
+        receiver = VideoStreamSubscriber(hostname, port)
+
+        # JPEG quality, 0 - 100
+        jpeg_quality = 95
+
+
+        while True:
+            msg, frame = receiver.receive()
+            obj = {"boxes":[],"scores":[],"labels":[]}
+            image = cv2.imdecode(np.frombuffer(frame, dtype='uint8'), -1)
+
+            result_boxes, result_scores, result_classid, t = yolov5_wrapper.infer(image)
+
+
+            for j in range(len(result_boxes)):
+                obj["boxes"].append(result_boxes[j].astype(int).tolist())
+                obj["scores"].append((result_scores[j]*100).astype(int).tolist())
+                obj["labels"].append(categories[int(result_classid[j])])
+
+            print(str(obj))
+            print('real infer, time->{:.2f}ms'.format(t * 1000))
+            # for j in range(len(result_boxes)):
+            #     box = result_boxes[j]
+            #     plot_one_box(
+            #         box,
+            #         image,
+            #         label="{}:{:.2f}".format(
+            #             categories[int(result_classid[j])], result_scores[j]
+            #         ),
+            #     )
+            ret_code, jpg_buffer = cv2.imencode(
+                    ".jpg", image, [int(cv2.IMWRITE_JPEG_QUALITY), jpeg_quality])
+            time.sleep(1)
+            sender.send_jpg(str(obj), jpg_buffer)
+            # cv2.imshow("Pub Sub Receive", image)
+            # cv2.waitKey(1)
+    except (KeyboardInterrupt, SystemExit):
+        print('Exit due to keyboard interrupt')
+    except Exception as ex:
+        print('Python error with no Exception handler:')
+        print('Traceback error:', ex)
+        traceback.print_exc()
     finally:
         # destroy the instance
         yolov5_wrapper.destroy()
+
+        receiver.close()
+        sys.exit()
+
+
+    # finally:
