@@ -75,7 +75,9 @@ __pycache__/
 # Distribution / packaging
 .Python
 env/
-build/
+!build/libmyplugins.so
+!build/yolov5n.engine
+build
 develop-eggs/
 dist/
 downloads/
