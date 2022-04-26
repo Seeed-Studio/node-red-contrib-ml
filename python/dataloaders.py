@@ -12,6 +12,7 @@ from pathlib import Path
 from threading import Thread
 from zipfile import ZipFile
 import logging
+import re
 
 
 import cv2
@@ -31,6 +32,10 @@ def set_logging(name=None, verbose=True):
 
 LOGGER = set_logging(__name__)  # define globally (used in train.py, val.py, detect.py, etc.)
 
+
+def clean_str(s):
+    # Cleans a string by replacing special characters with underscore _
+    return re.sub(pattern="[|@#!¡·$€%&()=?¿^*;:,¨´><+]", repl="_", string=s)
 
 
 def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleFill=False, scaleup=True, stride=32):
@@ -207,11 +212,16 @@ class LoadStreams:
             #     s = pafy.new(s).getbest(preftype="mp4").url  # YouTube URL
             s = eval(s) if s.isnumeric() else s  # i.e. s = '0' local webcam
             cap = cv2.VideoCapture(s)
+
             assert cap.isOpened(), f'{st}Failed to open {s}'
             w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
             self.fps[i] = max(cap.get(cv2.CAP_PROP_FPS) % 100, 0) or 30.0  # 30 FPS fallback
+            # TODO: current 9fps, neeed high fps 30
             self.frames[i] = max(int(cap.get(cv2.CAP_PROP_FRAME_COUNT)), 0) or float('inf')  # infinite stream fallback
+
+            # cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+            # cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
             _, self.imgs[i] = cap.read()  # guarantee first frame
             self.threads[i] = Thread(target=self.update, args=([i, cap, s]), daemon=True)
@@ -248,22 +258,21 @@ class LoadStreams:
 
     def __next__(self):
         self.count += 1
-        if not all(x.is_alive() for x in self.threads) or cv2.waitKey(1) == ord('q'):  # q to quit
-            cv2.destroyAllWindows()
+        if not all(x.is_alive() for x in self.threads):  # q to quit
             raise StopIteration
 
         # Letterbox
         img0 = self.imgs.copy()
-        img = [letterbox(x, self.img_size, stride=self.stride, auto=self.rect and self.auto)[0] for x in img0]
+        # img = [letterbox(x, self.img_size, stride=self.stride, auto=self.rect and self.auto)[0] for x in img0]
 
-        # Stack
-        img = np.stack(img, 0)
+        # # Stack
+        # img = np.stack(img, 0)
 
-        # Convert
-        img = img[..., ::-1].transpose((0, 3, 1, 2))  # BGR to RGB, BHWC to BCHW
-        img = np.ascontiguousarray(img)
+        # # Convert
+        # img = img[..., ::-1].transpose((0, 3, 1, 2))  # BGR to RGB, BHWC to BCHW
+        # img = np.ascontiguousarray(img)
 
-        return self.sources, img, img0, None, ''
+        return self.sources, '', img0, None, ''
 
     def __len__(self):
         return len(self.sources)  # 1E12 frames = 32 streams at 30 FPS for 30 years
