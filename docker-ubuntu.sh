@@ -23,6 +23,8 @@ echo "#########################################################################"
 # sudo nvidia-docker run -it -d --restart=always  -p 1880:1880  --name node-red   dev:node-red-build
 
 echo "start all of docker"
+
+sudo curl -SL https://github.com/docker/compose/releases/download/v2.5.0/docker-compose-linux-aarch64  -o /usr/local/bin/docker-compose
 #deamon
 sudo  docker-compose --file docker/docker-compose.yaml  up -d
 
