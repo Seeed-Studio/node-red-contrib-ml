@@ -17,11 +17,37 @@ import imagezmq
 import traceback
 import argparse
 import json
+import base64
+
+from multiprocessing import Process
+import subprocess
+import threading
+from flask import Flask
+from flask import request
 
 from dataloaders import LoadImages,LoadWebcam,LoadStreams
 
+import logging
+# logging.getLogger('werkzeug').disabled = True
+
+yolov5_wrapper = None
+app = Flask(__name__)
+host = ('0.0.0.0', 5560)
+
 CONF_THRESH = 0.5
 IOU_THRESHOLD = 0.4
+
+# JPEG quality, 0 - 100
+jpeg_quality = 95
+
+to_jpg_buffer = bytes('seeed',encoding="utf-8")
+to_vision_buffer = []
+
+
+PLUGIN_LIBRARY = "build/libmyplugins.so"
+engine_file_path = "build/yolov5n.engine"
+ctypes.CDLL(PLUGIN_LIBRARY)
+
 
 
 def get_img_path_batches(batch_size, img_dir):
@@ -54,7 +80,8 @@ def plot_one_box(x, img, color=None, label=None, line_thickness=None):
     tl = (
         line_thickness or round(0.002 * (img.shape[0] + img.shape[1]) / 2) + 1
     )  # line/font thickness
-    color = color or [random.randint(0, 255) for _ in range(3)]
+    # color = color or [random.randint(0, 255) for _ in range(3)]
+    color = [255,0,0]
     c1, c2 = (int(x[0]), int(x[1])), (int(x[2]), int(x[3]))
     cv2.rectangle(img, c1, c2, color, thickness=tl, lineType=cv2.LINE_AA)
     if label:
@@ -130,7 +157,7 @@ class YoLov5TRT(object):
 
 
     def infer(self, raw_image_generator):
-        #threading.Thread.__init__(self)
+        # threading.Thread.__init__(self)
         # Make self the active context, pushing it on top of the context stack.
         self.ctx.push()
         # Restore
@@ -221,8 +248,7 @@ class YoLov5TRT(object):
         """
         description: Ready data for warmup
         """
-        for _ in range(self.batch_size):
-            yield np.zeros([self.input_h, self.input_w, 3], dtype=np.uint8)
+        return np.zeros([self.input_h, self.input_w, 3], dtype=np.uint8)
 
     def preprocess_image(self, raw_bgr_image):
         """
@@ -399,211 +425,88 @@ class YoLov5TRT(object):
         return boxes
 
 
-class inferThread(threading.Thread):
-    def __init__(self, yolov5_wrapper, image_path_batch):
-        threading.Thread.__init__(self)
-        self.yolov5_wrapper = yolov5_wrapper
-        self.image_path_batch = image_path_batch
-
-    def run(self):
-        # batch_image_raw, use_time = self.yolov5_wrapper.infer(self.yolov5_wrapper.get_raw_image(self.image_path_batch))
-        # for i, img_path in enumerate(self.image_path_batch):
-        #     parent, filename = os.path.split(img_path)
-        #     save_name = os.path.join('output', filename)
-        #     # Save image
-        #     cv2.imwrite(save_name, batch_image_raw[i])
-        # print('input->{}, time->{:.2f}ms, saving into output/'.format(self.image_path_batch, use_time * 1000))
-
-        # result_boxes, result_scores, result_classid, t = self.yolov5_wrapper.infer(self.yolov5_wrapper.get_raw_image(self.image_path_batch))
-        print(result_boxes.shape)
-        print(result_scores.shape)
-        print(result_classid.shape)
-        print('real infer, time->{:.2f}ms'.format(t * 1000))
 
 
-class warmUpThread(threading.Thread):
-    def __init__(self, yolov5_wrapper):
-        threading.Thread.__init__(self)
-        self.yolov5_wrapper = yolov5_wrapper
+@app.route('/health')
+def http_get_request_health():
+    return 'ok'
 
-    def run(self):
-        # batch_image_raw, use_time = self.yolov5_wrapper.infer(self.yolov5_wrapper.get_raw_image_zeros())
-        # print('warm_up->{}, time->{:.2f}ms'.format(batch_image_raw[0].shape, use_time * 1000))
-        result_boxes, result_scores, result_classid, t = self.yolov5_wrapper.infer(self.yolov5_wrapper.get_raw_image_zeros())
-        print(result_boxes.shape)
-        print(result_scores.shape)
-        print(result_classid.shape)
-        print('warm_up, time->{:.2f}ms'.format(t * 1000))
+@app.route('/config')
+def http_request_config():
+    return 'hello world'
 
+@app.route('/',methods=["POST"])
+def http_request_delector():
 
-
-# Helper class implementing an IO deamon thread
-class VideoStreamSubscriber:
-
-    def __init__(self, hostname, port):
-        self.hostname = hostname
-        self.port = port
-        self._stop = False
-        self._data_ready = threading.Event()
-        self._thread = threading.Thread(target=self._run, args=())
-        self._thread.daemon = True
-        self._thread.start()
-
-    def receive(self, timeout=15.0):
-        flag = self._data_ready.wait(timeout=timeout)
-        if not flag:
-            raise TimeoutError(
-                "Timeout while reading from subscriber tcp://{}:{}".format(self.hostname, self.port))
-        self._data_ready.clear()
-        return self._data
-
-    def _run(self):
-        receiver = imagezmq.ImageHub("tcp://{}:{}".format(self.hostname, self.port), REQ_REP=False)
-        while not self._stop:
-            self._data = receiver.recv_jpg()
-            self._data_ready.set()
-        receiver.close()
-
-    def close(self):
-        self._stop = True
-
-
-
-def parse_args():
-    parser = argparse.ArgumentParser(description='broadcast OpenCV stream using PUB SUB.')
-    parser.add_argument('--port', type=int, required=True, help='video stream broadcast port')
-    parser.add_argument('--source', type=str, default='data/images', help='file/dir/URL/glob, 0 for webcam')
-    args = parser.parse_args()
-
-    return args.port, args.source
-
-
-if __name__ == "__main__":
-    # load custom plugin and engine
-    PLUGIN_LIBRARY = "build/libmyplugins.so"
-    engine_file_path = "build/yolov5n.engine"
-
-    if len(sys.argv) > 1:
-        engine_file_path = sys.argv[1]
-    if len(sys.argv) > 2:
-        PLUGIN_LIBRARY = sys.argv[2]
-
-    ctypes.CDLL(PLUGIN_LIBRARY)
-
-    # load coco labels
-
-    categories = ["person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light",
-            "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow",
-            "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee",
-            "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard",
-            "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple",
-            "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch",
-            "potted plant", "bed", "dining table", "toilet", "tv", "laptop", "mouse", "remote", "keyboard", "cell phone",
-            "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear",
-            "hair drier", "toothbrush"]
-
-    if os.path.exists('output/'):
-        shutil.rmtree('output/')
-    os.makedirs('output/')
-    #dataloader = LoadImages("samples/", img_size=640,auto=False)
-    # dataloader =  LoadWebcam("0",stride=32)
-    # sender = imagezmq.ImageSender(connect_to='tcp://localhost:5555')  # change to IP address and port of server thread
-
-    # send_port, source = parse_args()
-    sender = imagezmq.ImageSender("tcp://*:{}".format(5566), REQ_REP=False)
-
-
-
-    cam_id = 'Camera 1'  # this name will be displayed on the corresponding camera stream
-    # a YoLov5TRT instance
-    yolov5_wrapper = YoLov5TRT(engine_file_path)
     try:
-        print('batch size is', yolov5_wrapper.batch_size)
-        
-        image_dir = "samples/"
-        image_path_batches = get_img_path_batches(yolov5_wrapper.batch_size, image_dir)
+        # get request img
+        request_base64_image = request.get_data()
+        print('======print request base64')
+        request_image = base64.b64decode(request_base64_image)
 
-        # for i in range(10): 
-        #     # create a new thread to do warm_up
-        #     thread1 = warmUpThread(yolov5_wrapper)
-        #     thread1.start()
-        #     thread1.join()
-        # for batch in image_path_batches:
-        #     # create a new thread to do inference
-        #     thread1 = inferThread(yolov5_wrapper, batch)
-        #     thread1.start()
-        #     thread1.join()
-
-        # for path, im, im0s, vid_cap, s in dataloader:
-        #     result_boxes, result_scores, result_classid, t = yolov5_wrapper.infer(im)
-        #     print(result_boxes.shape)
-        #     print(result_scores.shape)
-        #     print(result_classid.shape)
-        #     print('real infer, time->{:.2f}ms'.format(t * 1000))
-        #     for j in range(len(result_boxes)):
-        #         box = result_boxes[j]
-        #         plot_one_box(
-        #             box,
-        #             im0s,
-        #             label="{}:{:.2f}".format(
-        #                 categories[int(result_classid[j])], result_scores[j]
-        #             ),
-        #         )
-        #     sender.send_image(cam_id, im0s)
-
-        # Receive from broadcast
-        # There are 2 hostname styles; comment out the one you don't need
-        hostname = "127.0.0.1"  # Use to receive from localhost
-        # hostname = "192.168.86.38"  # Use to receive from other computer
-        port = 5555
-        receiver = VideoStreamSubscriber(hostname, port)
-
-        # JPEG quality, 0 - 100
-        jpeg_quality = 95
+        # load coco labels
+        categories = ["person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light",
+                "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow",
+                "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee",
+                "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard",
+                "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple",
+                "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch",
+                "potted plant", "bed", "dining table", "toilet", "tv", "laptop", "mouse", "remote", "keyboard", "cell phone",
+                "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear",
+                "hair drier", "toothbrush"]
 
 
-        while True:
-            msg, frame = receiver.receive()
-            obj = {"boxes":[],"scores":[],"labels":[]}
-            image = cv2.imdecode(np.frombuffer(frame, dtype='uint8'), -1)
-
+        # analyze img
+        obj = {"boxes":[],"scores":[],"labels":[]}
+        image = cv2.imdecode(np.frombuffer(request_image, dtype='uint8'), -1)
+        try:
             result_boxes, result_scores, result_classid, t = yolov5_wrapper.infer(image)
+        except Exception as ex:
+            print('Traceback error:', ex)
+            yolov5_wrapper.destroy()
+            return base64.b64encode(request_image), 200, [("vision", str(obj))]
 
 
-            for j in range(len(result_boxes)):
-                obj["boxes"].append(result_boxes[j].astype(int).tolist())
-                obj["scores"].append((result_scores[j]*100).astype(int).tolist())
-                obj["labels"].append(categories[int(result_classid[j])])
+        for j in range(len(result_boxes)):
+            obj["boxes"].append(result_boxes[j].astype(int).tolist())
+            obj["scores"].append((result_scores[j]*100).astype(int).tolist())
+            obj["labels"].append(categories[int(result_classid[j])])
 
-            print(str(obj))
-            print('real infer, time->{:.2f}ms'.format(t * 1000))
-            # for j in range(len(result_boxes)):
-            #     box = result_boxes[j]
-            #     plot_one_box(
-            #         box,
-            #         image,
-            #         label="{}:{:.2f}".format(
-            #             categories[int(result_classid[j])], result_scores[j]
-            #         ),
-            #     )
-            ret_code, jpg_buffer = cv2.imencode(
-                    ".jpg", image, [int(cv2.IMWRITE_JPEG_QUALITY), jpeg_quality])
-            time.sleep(1)
-            sender.send_jpg(str(obj), jpg_buffer)
-            # cv2.imshow("Pub Sub Receive", image)
-            # cv2.waitKey(1)
+        # print(str(obj))
+        print('real infer, time->{:.2f}ms'.format(t * 1000))
+        for j in range(len(result_boxes)):
+            box = result_boxes[j]
+            plot_one_box(
+                box,
+                image,
+                label="{}:{:.2f}".format(
+                    categories[int(result_classid[j])], result_scores[j]
+                ),
+            )
+        ret_code, jpg_buffer = cv2.imencode(
+                ".jpg", image, [int(cv2.IMWRITE_JPEG_QUALITY), jpeg_quality])
+        return base64.b64encode(jpg_buffer), 200, [("vision", str(obj))]
     except (KeyboardInterrupt, SystemExit):
         print('Exit due to keyboard interrupt')
+        return "err"
     except Exception as ex:
         print('Python error with no Exception handler:')
         print('Traceback error:', ex)
         traceback.print_exc()
-    finally:
-        # destroy the instance
         yolov5_wrapper.destroy()
-
-        receiver.close()
-        sys.exit()
+        return "err"
 
 
-    # finally:
+
+# a YoLov5TRT instance
+yolov5_wrapper = YoLov5TRT(engine_file_path)
+
+
+if __name__ == "__main__":
+    #init_streams()
+    # warmup the engine
+    for i in range(5): 
+        yolov5_wrapper.infer(yolov5_wrapper.get_raw_image_zeros())
+
+    print('init stream success.')
+    app.run(host="0.0.0.0", port=5560)
