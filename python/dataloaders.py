@@ -211,7 +211,8 @@ class LoadStreams:
             #     import pafy
             #     s = pafy.new(s).getbest(preftype="mp4").url  # YouTube URL
             s = eval(s) if s.isnumeric() else s  # i.e. s = '0' local webcam
-            cap = cv2.VideoCapture(s)
+            #cap = cv2.VideoCapture(s)
+            cap = cv2.VideoCapture(f"v4l2src device=/dev/video{s} ! image/jpeg,framerate=30/1,width=640, height=480,type=video ! jpegdec ! videoconvert ! video/x-raw ! appsink", cv2.CAP_GSTREAMER)
 
             assert cap.isOpened(), f'{st}Failed to open {s}'
             w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -220,8 +221,7 @@ class LoadStreams:
             # TODO: current 9fps, neeed high fps 30
             self.frames[i] = max(int(cap.get(cv2.CAP_PROP_FRAME_COUNT)), 0) or float('inf')  # infinite stream fallback
 
-            # cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-            # cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
 
             _, self.imgs[i] = cap.read()  # guarantee first frame
             self.threads[i] = Thread(target=self.update, args=([i, cap, s]), daemon=True)
