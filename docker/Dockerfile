@@ -107,6 +107,9 @@ ENV NODE_RED_VERSION=$NODE_RED_VERSION \
 # ENV NODE_RED_ENABLE_SAFE_MODE=true    # Uncomment to enable safe start mode (flows not running)
 # ENV NODE_RED_ENABLE_PROJECTS=true     # Uncomment to enable projects option
 
+
+HEALTHCHECK CMD curl --fail http://localhost:1880 || exit 1   
+
 # Expose the listening port of node-red
 EXPOSE 1880
 
@@ -114,3 +117,5 @@ EXPOSE 1880
 # HEALTHCHECK CMD curl http://localhost:1880/ || exit 1
 
 # ENTRYPOINT ["node-red", "--cache", "/data/.npm", "--", "--userDir", "/data"]
+
+

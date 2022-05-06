@@ -1,0 +1,10 @@
+FROM dev:base-build
+
+COPY build /data/build
+COPY python /data/python
+
+WORKDIR /data
+
+EXPOSE 5550
+
+ENTRYPOINT [ "python3", "python/pub_sub_broadcast.py"]

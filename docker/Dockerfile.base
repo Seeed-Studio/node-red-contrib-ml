@@ -1,0 +1,19 @@
+FROM dustynv/jetson-inference:r32.7.1
+
+
+# ARG APT_PROXY
+# COPY docker/detect-apt-proxy.sh /root
+# RUN  echo "apt proxy: ${APT_PROXY}"
+# RUN /root/detect-apt-proxy.sh ${APT_PROXY}
+
+
+
+ENV TZ="Asia/Hong_Kong"
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+
+#Install python package
+RUN pip3 install imagezmq flask pycuda
+
+
+
