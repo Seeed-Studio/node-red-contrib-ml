@@ -1,18 +1,31 @@
 #!/bin/bash
-export NODE_RED_VERSION=$(grep -oE "\"node-red\": \"(\w*.\w*.\w*.\w*.\w*.)" package.json | cut -d\" -f4)
 
 echo "#########################################################################"
-echo "node-red version: ${NODE_RED_VERSION}"
+echo "build docker base"
+sudo  docker build --rm --no-cache   --file docker/Dockerfile.base  --tag dev:base-build .
 echo "#########################################################################"
 
-docker build --rm --no-cache \
-    --build-arg APT_PROXY="http://192.168.4.40:3142" \
-    --build-arg RELEASE=v0.1 \
-    --build-arg ARCH=amd64 \
-    --build-arg NODE_VERSION=14 \
-    --build-arg NODE_RED_VERSION=${NODE_RED_VERSION} \
-    --build-arg OS=ubuntu \
-    --build-arg BUILD_DATE="$(date +"%Y-%m-%dT%H:%M:%SZ")" \
-    --build-arg TAG_SUFFIX=default \
-    --file docker/Dockerfile \
-    --tag testing:node-red-build .
+echo "build docker dataloader"
+sudo  docker build --file docker/Dockerfile.dataloader --tag dev:dataloader-build .
+echo "#########################################################################"
+
+echo "build docker detection"
+sudo  docker build  --file docker/Dockerfile.detection --tag dev:detection-build .
+echo "#########################################################################"
+
+echo "build docker node-red"
+sudo  docker build  --file docker/Dockerfile.node-red --tag dev:node-red-build .
+echo "#########################################################################"
+
+# test
+# sudo nvidia-docker run -it -p 5550:5550  --device  /dev/video0  --name dataloader  dev:dataloader-build 
+# sudo nvidia-docker run -it  -p 5560:5560   --name detection  dev:detection-build
+# sudo nvidia-docker run -it -d --restart=always  -p 1880:1880  --name node-red   dev:node-red-build
+
+echo "start all of docker"
+#deamon
+sudo  docker-compose --file docker/docker-compose.yaml  up -d
+
+#no deamon
+#sudo  docker-compose --file docker/docker-compose.yaml  up
+echo "#########################################################################"
