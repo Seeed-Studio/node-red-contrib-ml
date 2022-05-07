@@ -40,9 +40,6 @@ IOU_THRESHOLD = 0.4
 # JPEG quality, 0 - 100
 jpeg_quality = 95
 
-to_jpg_buffer = bytes('seeed',encoding="utf-8")
-to_vision_buffer = []
-
 
 PLUGIN_LIBRARY = "build/libmyplugins.so"
 engine_file_path = "build/yolov5n.engine"
@@ -459,12 +456,13 @@ def http_request_delector():
         # analyze img
         obj = {"boxes":[],"scores":[],"labels":[]}
         image = cv2.imdecode(np.frombuffer(request_image, dtype='uint8'), -1)
+
         try:
             result_boxes, result_scores, result_classid, t = yolov5_wrapper.infer(image)
         except Exception as ex:
             print('Traceback error:', ex)
             yolov5_wrapper.destroy()
-            return base64.b64encode(request_image), 200, [("vision", str(obj))]
+            return request_base64_image, 200, [("vision", str(obj))]
 
 
         for j in range(len(result_boxes)):
