@@ -20,7 +20,7 @@ fi
 
 storage=$(df   | awk '{ print  $4  } ' | awk 'NR==2{print}' )
 #if storage > 3G
-if [ $storage -gt 32000000 ] ; then
+if [ $storage -gt 3200000 ] ; then
 	echo -e "${IGreen}Your system space left is $storage, you can install this application."
 else
 	echo -e "${IRed}Sorry, you don't have enough storage space to install this docker."
