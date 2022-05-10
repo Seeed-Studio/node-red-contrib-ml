@@ -24,6 +24,7 @@ import subprocess
 import threading
 from flask import Flask
 from flask import request
+from flask.views import MethodView
 
 from dataloaders import LoadImages,LoadWebcam,LoadStreams
 
@@ -150,6 +151,7 @@ class YoLov5TRT(object):
         self.cuda_outputs = cuda_outputs
         self.bindings = bindings
         self.batch_size = engine.max_batch_size
+
         
 
 
@@ -198,16 +200,15 @@ class YoLov5TRT(object):
         # Copy input image to host buffer
         #np.copyto(host_inputs[0], raw_image_generator.ravel())
         np.copyto(host_inputs[0], batch_input_image.ravel())
-        start = time.time()
+
         # Transfer input data  to the GPU.
         cuda.memcpy_htod_async(cuda_inputs[0], host_inputs[0], stream)
         # Run inference.
-        context.execute_async(batch_size=self.batch_size, bindings=bindings, stream_handle=stream.handle)
+        result = context.execute_async(batch_size=self.batch_size, bindings=bindings, stream_handle=stream.handle)
         # Transfer predictions back from the GPU.
         cuda.memcpy_dtoh_async(host_outputs[0], cuda_outputs[0], stream)
         # Synchronize the stream
         stream.synchronize()
-        end = time.time()
         # Remove any context from the top of the context stack, deactivating it.
         self.ctx.pop()
         # Here we use the first row of output in that batch_size = 1
@@ -227,7 +228,7 @@ class YoLov5TRT(object):
             #             categories[int(result_classid[j])], result_scores[j]
             #         ),
             #     )
-        return result_boxes, result_scores, result_classid, end - start
+        return result_boxes, result_scores, result_classid, result
 
     def destroy(self):
         # Remove any context from the top of the context stack, deactivating it.
@@ -422,89 +423,115 @@ class YoLov5TRT(object):
         return boxes
 
 
+is_busy = False
+latest_result = "Nonthing", 200, [("vision", str({"boxes":[],"scores":[],"labels":[]}))] 
+
+class TRTAPI(MethodView):
+    @classmethod
+    def init(cls):
+        cls.yolov5 = YoLov5TRT(engine_file_path)
+        # cls.is_busy = False
+            # load coco labels
+        cls.categories = ["person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light",
+                    "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow",
+                    "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee",
+                    "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard",
+                    "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple",
+                    "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch",
+                    "potted plant", "bed", "dining table", "toilet", "tv", "laptop", "mouse", "remote", "keyboard", "cell phone",
+                    "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear",
+                    "hair drier", "toothbrush"]
+
+        app.logger.info(f"TRTAPI init ....")
+
+        
+
+    def get(self, cmd):
+        if cmd == "health":
+            return "ok"
+        elif cmd == "config":
+            return "hello world"
 
 
-@app.route('/health')
-def http_get_request_health():
-    return 'ok'
-
-@app.route('/config')
-def http_request_config():
-    return 'hello world'
-
-@app.route('/',methods=["POST"])
-def http_request_delector():
-
-    try:
-        # get request img
-        request_base64_image = request.get_data()
-        print('======print request base64')
-        request_image = base64.b64decode(request_base64_image)
-
-        # load coco labels
-        categories = ["person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light",
-                "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow",
-                "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee",
-                "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard",
-                "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple",
-                "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch",
-                "potted plant", "bed", "dining table", "toilet", "tv", "laptop", "mouse", "remote", "keyboard", "cell phone",
-                "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear",
-                "hair drier", "toothbrush"]
-
-
-        # analyze img
-        obj = {"boxes":[],"scores":[],"labels":[]}
-        image = cv2.imdecode(np.frombuffer(request_image, dtype='uint8'), -1)
-
+    def post(self):
         try:
-            result_boxes, result_scores, result_classid, t = yolov5_wrapper.infer(image)
+            global is_busy, latest_result
+
+            if is_busy :
+                return  latest_result
+            
+            is_busy = True
+            # get request img
+            request_base64_image = request.get_data()
+            request_image = base64.b64decode(request_base64_image)
+
+
+            # analyze img
+            image = cv2.imdecode(np.frombuffer(request_image, dtype='uint8'), -1)
+            result_boxes, result_scores, result_classid, ret = self.yolov5.infer(image)
+
+            if ret:
+                obj = {"boxes":[],"scores":[],"labels":[]}
+                for j in range(len(result_boxes)):
+                    obj["boxes"].append(result_boxes[j].astype(int).tolist())
+                    obj["scores"].append((result_scores[j]*100).astype(int).tolist())
+                    obj["labels"].append(self.categories[int(result_classid[j])])
+
+                # print(str(obj))
+                # print('real infer, time->{:.2f}ms'.format(t * 1000))
+                for j in range(len(result_boxes)):
+                    box = result_boxes[j]
+                    plot_one_box(
+                        box,
+                        image,
+                        label="{}:{:.2f}".format(
+                            self.categories[int(result_classid[j])], result_scores[j]
+                        ),
+                    )
+
+                ret_code, jpg_buffer = cv2.imencode(
+                        ".jpg", image, [int(cv2.IMWRITE_JPEG_QUALITY), jpeg_quality])
+
+                latest_result = base64.b64encode(jpg_buffer), 200, [("vision", str(obj))]
+
+            else:
+                obj = {"boxes":[],"scores":[],"labels":[]}
+                ret_code, jpg_buffer = cv2.imencode(
+                        ".jpg", image, [int(cv2.IMWRITE_JPEG_QUALITY), jpeg_quality])        
+
+                latest_result = request_base64_image, 200, [("vision", str(obj))]
+
+            is_busy = False
+            
+            # app.logger.info(f"latest result:{latest_result}")
+            return latest_result
+            
+        except (KeyboardInterrupt, SystemExit):
+            print('Exit due to keyboard interrupt')
+            return "err"
         except Exception as ex:
+            print('Python error with no Exception handler:')
             print('Traceback error:', ex)
-            yolov5_wrapper.destroy()
-            return request_base64_image, 200, [("vision", str(obj))]
+            traceback.print_exc()
+            self.yolov5.destroy()
+            return "err"
 
+    def delete(self, cmd):
+        return "ok"
 
-        for j in range(len(result_boxes)):
-            obj["boxes"].append(result_boxes[j].astype(int).tolist())
-            obj["scores"].append((result_scores[j]*100).astype(int).tolist())
-            obj["labels"].append(categories[int(result_classid[j])])
+    def put(self, cmd):
+        return "ok"
 
-        # print(str(obj))
-        print('real infer, time->{:.2f}ms'.format(t * 1000))
-        for j in range(len(result_boxes)):
-            box = result_boxes[j]
-            plot_one_box(
-                box,
-                image,
-                label="{}:{:.2f}".format(
-                    categories[int(result_classid[j])], result_scores[j]
-                ),
-            )
-        ret_code, jpg_buffer = cv2.imencode(
-                ".jpg", image, [int(cv2.IMWRITE_JPEG_QUALITY), jpeg_quality])
-        return base64.b64encode(jpg_buffer), 200, [("vision", str(obj))]
-    except (KeyboardInterrupt, SystemExit):
-        print('Exit due to keyboard interrupt')
-        return "err"
-    except Exception as ex:
-        print('Python error with no Exception handler:')
-        print('Traceback error:', ex)
-        traceback.print_exc()
-        yolov5_wrapper.destroy()
-        return "err"
-
-
-
-# a YoLov5TRT instance
-yolov5_wrapper = YoLov5TRT(engine_file_path)
 
 
 if __name__ == "__main__":
-    #init_streams()
-    # warmup the engine
-    for i in range(5): 
-        yolov5_wrapper.infer(yolov5_wrapper.get_raw_image_zeros())
-
     print('init stream success.')
+    trt_view = TRTAPI.as_view('')
+    TRTAPI.init()
+    app.add_url_rule('/', defaults={'cmd': None},
+                    view_func=trt_view, methods=['GET',])
+    app.add_url_rule('/', view_func=trt_view, methods=['POST',])
+    app.add_url_rule('/<string:cmd>', view_func=trt_view,
+                 methods=['GET', 'PUT', 'DELETE'])
+
     app.run(host="0.0.0.0", port=5560)
