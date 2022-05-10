@@ -51,7 +51,8 @@ if ! [ -x "$(command -v nvidia-docker)" ]; then
 fi
 
 if ! [ -x "$(command -v docker-compose)" ]; then
-	sudo curl -SL https://github.com/docker/compose/releases/download/v2.5.0/docker-compose-linux-aarch64  -o /usr/local/bin/docker-compose
+	curl -SL https://files.seeedstudio.com/wiki/reComputer/compose.tar.bz2  -o /tmp/compose.tar.bz2 
+	tar xvf /tmp/compose.tar.bz2 -C /usr/local/bin
 	sudo chmod +x  /usr/local/bin/docker-compose
 fi
 
