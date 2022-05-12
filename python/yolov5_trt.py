@@ -440,7 +440,7 @@ class TRTAPI(object):
         app.logger.info(f"TRTAPI init ....")
 
         self.is_busy = False
-        self.latest_result = "Nonthing", 200, [("vision", str({"boxes":[],"scores":[],"labels":[]})),("busy","false")] 
+        self.latest_result = "Nonthing", 200, [("vision", str({"boxes":[],"scores":[],"labels":[]})),("busy","true")]
 
         
 
@@ -449,7 +449,7 @@ class TRTAPI(object):
         try:
 
             if self.is_busy :
-                return  self.latest_result
+                return  "Nonthing", 200, [("vision", str({"boxes":[],"scores":[],"labels":[]})),("busy","true")]
             
             self.is_busy = True
             start = time.time()
