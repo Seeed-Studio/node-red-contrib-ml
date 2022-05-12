@@ -3,6 +3,8 @@ FROM dev:base-build
 COPY build /data/build
 COPY python /data/python
 
+RUN apt-get remove -y gstreamer1.0-plugins-ugly
+
 WORKDIR /data
 
 EXPOSE 5550
