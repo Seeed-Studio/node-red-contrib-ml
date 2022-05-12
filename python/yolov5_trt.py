@@ -440,7 +440,7 @@ class TRTAPI(object):
         app.logger.info(f"TRTAPI init ....")
 
         self.is_busy = False
-        self.latest_result = "Nonthing", 200, [("vision", str({"boxes":[],"scores":[],"labels":[]})),("busy","true")]
+        self.latest_result = "Nonthing", 200, [("vision", str({"boxes":[],"scores":[],"labels":[]})),("busy",1)]
 
         
 
@@ -449,7 +449,7 @@ class TRTAPI(object):
         try:
 
             if self.is_busy :
-                return  "Nonthing", 200, [("vision", str({"boxes":[],"scores":[],"labels":[]})),("busy","true")]
+                return  "Nonthing", 200, [("vision", str({"boxes":[],"scores":[],"labels":[]})),("busy",1)]
             
             self.is_busy = True
             start = time.time()
@@ -489,14 +489,14 @@ class TRTAPI(object):
                 ret_code, jpg_buffer = cv2.imencode(
                         ".jpg", image, [int(cv2.IMWRITE_JPEG_QUALITY), jpeg_quality])
 
-                self.latest_result = base64.b64encode(jpg_buffer), 200, [("vision", str(obj)),("busy","false")]
+                self.latest_result = base64.b64encode(jpg_buffer), 200, [("vision", str(obj)),("busy",0)]
 
             else:
                 obj = {"boxes":[],"scores":[],"labels":[]}
                 ret_code, jpg_buffer = cv2.imencode(
                         ".jpg", image, [int(cv2.IMWRITE_JPEG_QUALITY), jpeg_quality])        
 
-                self.latest_result = base64_image, 200, [("vision", str(obj)),("busy","false")]
+                self.latest_result = base64_image, 200, [("vision", str(obj)),("busy",0)]
 
             self.is_busy = False
             
@@ -535,7 +535,7 @@ if __name__ == "__main__":
             if not trtapp[i].is_busy:
                 app.logger.info(f"current infer engine: {i} ")
                 return trtapp[i].run(request_base64_image)
-        return "Nonthing", 200, [("vision", str({"boxes":[],"scores":[],"labels":[]})),("busy","true")] 
+        return "Nonthing", 200, [("vision", str({"boxes":[],"scores":[],"labels":[]})),("busy",1)] 
 
 
     app.run(host="0.0.0.0", port=5560)
