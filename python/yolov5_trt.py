@@ -24,7 +24,6 @@ import subprocess
 import threading
 from flask import Flask
 from flask import request
-from flask.views import MethodView
 
 from dataloaders import LoadImages,LoadWebcam,LoadStreams
 
