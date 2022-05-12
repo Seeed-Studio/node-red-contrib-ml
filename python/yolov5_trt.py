@@ -423,16 +423,12 @@ class YoLov5TRT(object):
         return boxes
 
 
-is_busy = False
-latest_result = "Nonthing", 200, [("vision", str({"boxes":[],"scores":[],"labels":[]}))] 
 
-class TRTAPI(MethodView):
-    @classmethod
-    def init(cls):
-        cls.yolov5 = YoLov5TRT(engine_file_path)
-        # cls.is_busy = False
+class TRTAPI(object):
+    def __init__(self):
+        self.yolov5 = YoLov5TRT(engine_file_path)
             # load coco labels
-        cls.categories = ["person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light",
+        self.categories = ["person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light",
                     "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow",
                     "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee",
                     "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard",
@@ -444,32 +440,34 @@ class TRTAPI(MethodView):
 
         app.logger.info(f"TRTAPI init ....")
 
+        self.is_busy = False
+        self.latest_result = "Nonthing", 200, [("vision", str({"boxes":[],"scores":[],"labels":[]})),("Busy","False")] 
+
         
 
-    def get(self, cmd):
-        if cmd == "health":
-            return "ok"
-        elif cmd == "config":
-            return "hello world"
 
-
-    def post(self):
+    def run(self, base64_image):
         try:
-            global is_busy, latest_result
 
-            if is_busy :
-                return  latest_result
+            if self.is_busy :
+                return  self.latest_result
             
-            is_busy = True
+            self.is_busy = True
+            start = time.time()
             # get request img
-            request_base64_image = request.get_data()
-            request_image = base64.b64decode(request_base64_image)
+            app.logger.info(f"request base64 image time {(time.time() - start) * 1000} ms")
+
+
+            request_image = base64.b64decode(base64_image)
 
 
             # analyze img
             image = cv2.imdecode(np.frombuffer(request_image, dtype='uint8'), -1)
+            
             result_boxes, result_scores, result_classid, ret = self.yolov5.infer(image)
+            app.logger.info(f"image shape:{image.shape}  infer time {(time.time() - start) * 1000} ms")
 
+            start = time.time()
             if ret:
                 obj = {"boxes":[],"scores":[],"labels":[]}
                 for j in range(len(result_boxes)):
@@ -492,19 +490,20 @@ class TRTAPI(MethodView):
                 ret_code, jpg_buffer = cv2.imencode(
                         ".jpg", image, [int(cv2.IMWRITE_JPEG_QUALITY), jpeg_quality])
 
-                latest_result = base64.b64encode(jpg_buffer), 200, [("vision", str(obj))]
+                self.latest_result = base64.b64encode(jpg_buffer), 200, [("vision", str(obj))]
 
             else:
                 obj = {"boxes":[],"scores":[],"labels":[]}
                 ret_code, jpg_buffer = cv2.imencode(
                         ".jpg", image, [int(cv2.IMWRITE_JPEG_QUALITY), jpeg_quality])        
 
-                latest_result = request_base64_image, 200, [("vision", str(obj))]
+                self.latest_result = request_base64_image, 200, [("vision", str(obj))]
 
-            is_busy = False
+            self.is_busy = False
             
-            # app.logger.info(f"latest result:{latest_result}")
-            return latest_result
+            app.logger.info(f"post process time: {(time.time() - start) * 1000} ms")
+            # app.logger.info(f"latest result:{self.latest_result}")
+            return self.latest_result
             
         except (KeyboardInterrupt, SystemExit):
             print('Exit due to keyboard interrupt')
@@ -516,22 +515,28 @@ class TRTAPI(MethodView):
             self.yolov5.destroy()
             return "err"
 
-    def delete(self, cmd):
-        return "ok"
-
-    def put(self, cmd):
-        return "ok"
-
-
 
 if __name__ == "__main__":
-    print('init stream success.')
-    trt_view = TRTAPI.as_view('')
-    TRTAPI.init()
-    app.add_url_rule('/', defaults={'cmd': None},
-                    view_func=trt_view, methods=['GET',])
-    app.add_url_rule('/', view_func=trt_view, methods=['POST',])
-    app.add_url_rule('/<string:cmd>', view_func=trt_view,
-                 methods=['GET', 'PUT', 'DELETE'])
+    trtapp = []
+    for _ in range(2):
+        trtapp.append(TRTAPI())
+
+    @app.route('/health')
+    def http_get_request_health():
+        return 'ok'
+
+    @app.route('/config')
+    def http_request_config():
+        return 'hello world'
+
+    @app.route('/',methods=["POST"])
+    def http_request_delector():
+        request_base64_image = request.get_data()
+        for i in range(2):
+            if not trtapp[i].is_busy:
+                app.logger.info(f"current infer engine: {i} ")
+                return trtapp[i].run(request_base64_image)
+        return "Nonthing", 200, [("vision", str({"boxes":[],"scores":[],"labels":[]})),("Busy","True")] 
+
 
     app.run(host="0.0.0.0", port=5560)
