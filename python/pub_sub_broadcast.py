@@ -10,7 +10,7 @@ import socket
 import traceback
 from time import sleep
 import cv2
-import imagezmq
+# import imagezmq
 from dataloaders import LoadStreams
 import os
 import argparse
@@ -54,7 +54,7 @@ def hello():
 def start_streams():
     global to_jpg_buffer
     port, source = parse_args()
-    sender = imagezmq.ImageSender("tcp://*:{}".format(port), REQ_REP=False)
+    # sender = imagezmq.ImageSender("tcp://*:{}".format(port), REQ_REP=False)
 
     # Open input stream; comment out one of these capture = VideoStream() lines!
     # *** You must use only one of Webcam OR PiCamera
@@ -75,14 +75,14 @@ def start_streams():
         counter = 0
         for path, im, im0s, vid_cap, s in dataloader:
             for img in im0s:
-                # img = cv2.resize(img, (640,360), interpolation=cv2.INTER_LINEAR)
+                img = cv2.resize(img, (1280,720), interpolation=cv2.INTER_LINEAR)
                 ret_code, jpg_buffer = cv2.imencode(
                     ".jpg", img, [int(cv2.IMWRITE_JPEG_QUALITY), jpeg_quality])
                 # sender.send_jpg(rpi_name, base64.b64encode(jpg_buffer))
 
                 to_jpg_buffer = jpg_buffer
 
-                sender.send_jpg(rpi_name, jpg_buffer)
+                # sender.send_jpg(rpi_name, jpg_buffer)
 
                 #sender.send_jpg(rpi_name, img)
 
