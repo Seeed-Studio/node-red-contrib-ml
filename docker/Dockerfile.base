@@ -13,7 +13,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 
 #Install python package
-RUN pip3 install imagezmq flask pycuda
+RUN pip3 install imagezmq flask pycuda  -i  https://pypi.tuna.tsinghua.edu.cn/simple
 
 
 
