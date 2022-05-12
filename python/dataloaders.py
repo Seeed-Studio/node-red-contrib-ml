@@ -1,6 +1,8 @@
 
 """
 Dataloaders and dataset utils
+sudo apt remove -y gstreamer1.0-plugins-ugly
+gst-launch-1.0 rtspsrc location="rtsp://admin:qqqqqqqq9@10.0.0.34:554/cam/realmonitor?channel=1&subtype=0" ! rtph264depay ! h264parse ! nvv4l2decoder ! nvvidconv ! video/x-raw,format=BGRx ! videoconvert ! video/x-raw,format=BGR ! appsink
 """
 
 import glob
@@ -211,8 +213,12 @@ class LoadStreams:
             #     import pafy
             #     s = pafy.new(s).getbest(preftype="mp4").url  # YouTube URL
             s = eval(s) if s.isnumeric() else s  # i.e. s = '0' local webcam
-            #cap = cv2.VideoCapture(s)
-            cap = cv2.VideoCapture(f"v4l2src device=/dev/video{s} ! image/jpeg,framerate=30/1,width=640, height=480,type=video ! jpegdec ! videoconvert ! video/x-raw ! appsink", cv2.CAP_GSTREAMER)
+            #cap = cv2.VideoCapture("rtsp://admin:qqqqqqqq9@10.0.0.34:554/cam/realmonitor?channel=1&subtype=0",cv2.CAP_GSTREAMER)
+            gst_str = ('rtspsrc location={} ! '
+               'rtph264depay ! h264parse ! nvv4l2decoder ! nvvidconv !'
+               'video/x-raw,format=BGRx ! videoconvert ! video/x-raw,format=BGR ! appsink ').format("rtsp://admin:qqqqqqqq9@10.0.0.34:554/cam/realmonitor?channel=1&subtype=0")
+            cap = cv2.VideoCapture(gst_str,cv2.CAP_GSTREAMER)
+            #cap = cv2.VideoCapture(f"v4l2src device=/dev/video{s} ! image/jpeg,framerate=30/1,width=640, height=480,type=video ! jpegdec ! videoconvert ! video/x-raw ! appsink", cv2.CAP_GSTREAMER)
 
             assert cap.isOpened(), f'{st}Failed to open {s}'
             w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
