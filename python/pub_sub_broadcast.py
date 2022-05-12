@@ -22,6 +22,7 @@ from multiprocessing import Process
 import subprocess
 import threading
 from flask import Flask
+from flask import request
 
 import logging
 logging.getLogger('werkzeug').disabled = True
@@ -49,6 +50,10 @@ def http_get_request_health():
 
 @app.route('/')
 def hello():
+    resolution = request.args.get('resolution')
+    localAddress = request.args.get('localAddress')
+    rtspUrl = request.args.get('rtspUrl')
+    app.logger.info(f"resolution:{resolution} localAddress:{localAddress} rtspUrl:{rtspUrl}")
     return base64.b64encode(to_jpg_buffer)
 
 def start_streams():
