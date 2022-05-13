@@ -85,6 +85,8 @@ echo -e  "${IGreen}start all of docker"
 #deamon
 sudo  docker-compose --file docker/docker-compose.yaml  up -d
 
+docker exec docker-node-red-1 bash -c "cd /data && npm install"
+
 #no deamon
 #sudo  docker-compose --file docker/docker-compose.yaml  up
 echo -e  "${IYellow}#########################################################################"
