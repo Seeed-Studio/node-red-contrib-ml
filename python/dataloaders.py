@@ -212,7 +212,7 @@ class LoadStreams:
             #     check_requirements(('pafy', 'youtube_dl'))
             #     import pafy
             #     s = pafy.new(s).getbest(preftype="mp4").url  # YouTube URL
-            s = eval(s) if s.isnumeric() else s  # i.e. s = '0' local webcam
+            # s = eval(s) if s.isnumeric() else s  # i.e. s = '0' local webcam
             # gst_str = ('rtspsrc location={} ! '
             #    'rtph264depay ! h264parse ! nvv4l2decoder ! nvvidconv !'
             #    'video/x-raw,width=1280,height=720,format=BGRx ! videoconvert ! video/x-raw,format=BGR ! appsink ').format("rtsp://admin:qqqqqqqq9@192.168.4.40:554/cam/realmonitor?channel=1&subtype=0")

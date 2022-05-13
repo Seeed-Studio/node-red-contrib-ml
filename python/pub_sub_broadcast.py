@@ -26,8 +26,16 @@ from flask import request
 import numpy as np
 import re
 
-import logging
 # logging.getLogger('dataloader').disabled = True
+from logging.config import dictConfig
+
+dictConfig({
+    'version': 1,
+    'root': {
+        'level': 'INFO',
+    }
+})
+
 
 app = Flask(__name__)
 
@@ -73,6 +81,9 @@ class DataLoadderThread(threading.Thread):
         self.data = None
         self.is_init = False
         self.is_ok = True
+        self.resolution = None
+        self.device = None
+        self.rtsp = None
         self.screen_table = {'3840': {'h':3840,'w':2160}, 
                 '2560': {'h':2560,'w':1600}, 
                 '1920': {'h':1920,'w':1080}, 
@@ -98,21 +109,25 @@ class DataLoadderThread(threading.Thread):
             self.data = generate_image_with_text("not init....")
             while not self.is_init:
                 try:
+                    if not self.resolution:
+                        continue
                     if  self.rtsp :
                         source = ('rtspsrc location={} ! ''rtph264depay ! h264parse ! nvv4l2decoder ! nvvidconv !'
                'video/x-raw,width={},height={},format=BGRx ! videoconvert ! video/x-raw,format=BGR ! appsink ').format(self.rtsp,
-                                                                                                                self.screen_table[self.resolution]['w'],
-                                                                                                                self.screen_table[self.resolution]['h'])
+                                                                                                                self.screen_table[self.resolution]['h'],
+                                                                                                                self.screen_table[self.resolution]['w'])
                     else:
-                        source ("v4l2src device={} ! image/jpeg,framerate=30/1,width={}, height={},type=video ! "
+                        source = ("v4l2src device={} ! image/jpeg,framerate=30/1,width={}, height={},type=video ! "
                         "jpegdec ! videoconvert ! video/x-raw ! appsink").format(self.device,
-                                                                                self.screen_table[self.resolution]['w'],
-                                                                                self.screen_table[self.resolution]['h'])
+                                                                                self.screen_table[self.resolution]['h'],
+                                                                                self.screen_table[self.resolution]['w'])
                     app.logger.info(source)
+                    print(source)
                     dataloader = LoadStreams(source)  # Webcam
                     self.is_init = True
                 except Exception as ex:
                     self.data =  generate_image_with_text(f"Traceback error: {ex}")
+                    print(ex)
                     self.is_ok = False                
 
         # Send RPi hostname with each image
@@ -170,6 +185,7 @@ if __name__ == "__main__":
         device = request.args.get("localAddress")
         rtsp = request.args.get("rtspUrl")
         dataloader.set_args(resolution,device,rtsp)
+    
         if dataloader.is_ok:
             return base64.b64encode(dataloader.data), 200, [("ok",1)] 
         else:
