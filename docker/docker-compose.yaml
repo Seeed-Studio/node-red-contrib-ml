@@ -4,6 +4,9 @@ services:
     image: dev:node-red-build
     restart: always
     network_mode: "host"
+    volumes:
+      - "$HOME/node-red:/data"
+    user: "0"
     ports:
       - "1880:1880"
   dataloader:
