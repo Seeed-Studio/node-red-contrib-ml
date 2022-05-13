@@ -56,12 +56,12 @@ def parse_args():
 
 def generate_image_with_text(text):
     img = np.ones(shape=(480,640,3), dtype=np.int16)
-    y0, dy = 30, 30
+    y0, dy = 10, 10
     #auto line , 35 ch new line
-    for i, line in enumerate(re.findall(r'.{35}', text)):
+    for i, line in enumerate(re.findall(r'.{77}', text)):
         y = y0 + i*dy
         # cv2.putText(img, line, (0, y ), cv2.FONT_HERSHEY_SIMPLEX, 1, 2)
-        cv2.putText(img=img, text=line, org=(0, y), fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1, color=(0, 255, 0),thickness=1)
+        cv2.putText(img=img, text=line, org=(0, y), fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=1, color=(0, 255, 0),thickness=1)
 
     # cv2.putText(img=img, text=text, org=(0, 30), fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1, color=(0, 255, 0),thickness=1)
     ret_code, jpg_buffer = cv2.imencode(".jpg", img, [int(cv2.IMWRITE_JPEG_QUALITY)])
