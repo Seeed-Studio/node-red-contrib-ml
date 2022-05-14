@@ -1,0 +1,10 @@
+{
+    "name": "node-red-project",
+    "description": "A Node-RED Project",
+    "version": "0.0.1",
+    "private": true,
+    "dependencies": {
+        "@node-red-contrib-themes/theme-collection": "^2.2.3",
+        "node-red-seeed-recomputer": "git+https://iteam-gitlab.seeed.cn/node-red-public-libs/node-red-seeed-recomputer.git"
+    }
+}
