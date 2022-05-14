@@ -1,5 +1,0 @@
-FROM nodered/node-red:2.2.2
-
-# RUN npm install git+https://iteam-gitlab.seeed.cn/node-red-public-libs/node-red-seeed-recomputer.git
-# RUN cd /data
-# RUN npm install

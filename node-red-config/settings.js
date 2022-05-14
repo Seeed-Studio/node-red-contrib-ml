@@ -341,7 +341,7 @@ module.exports = {
         },
         header: {
             title: "  Flow Editor<br/>",
-            image: "/home/seeed/node-red/seeed.webp", // or null to remove image
+            image: "/data/seeed.webp", // or null to remove image
             // url: "http://nodered.org" // optional url to make the header text/image a link to this url
         },
 
