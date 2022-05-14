@@ -24,11 +24,11 @@ if [ $storage -gt 3200000 ] ; then
 	echo -e "${IGreen}Your system space left is $storage, you can install this application."
 else
 	echo -e "${IRed}Sorry, you don't have enough storage space to install this docker."
-	echo -e "${IRed}But uninstalling nvidia-jetpack will free up space to install this docker, so please agree to uninstall nvidia-jetpack.y/n"
+	#echo -e "${IRed}But uninstalling nvidia-jetpack will free up space to install this docker, so please agree to uninstall nvidia-jetpack.y/n"
 	read yn
 	if [ $yn = "y" ] ; then
-		echo "${IGreen}start remove nvidia-jetpack"
-		apt remove -y nvidia-jetpack
+		echo "${IGreen}start autoremove"
+		#apt remove -y nvidia-jetpack
 		apt autoremove -y
 	else
 		exit 1
