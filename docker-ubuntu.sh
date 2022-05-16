@@ -68,8 +68,7 @@ echo -e  "${IGreen}start all of docker"
 docker-compose --file docker-compose.yaml  up -d
 
 #install node-red theme package
-docker exec docker-node-red-1 bash -c "cd /data && npm install"
-
+docker exec node-red-contrib-ml-node-red-1 bash -c "cd /data && npm install"
 
 #no deamon
 #docker-compose --file docker/docker-compose.yaml  up
