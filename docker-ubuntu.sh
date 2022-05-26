@@ -17,7 +17,7 @@ fi
 
 storage=$(df   | awk '{ print  $4  } ' | awk 'NR==2{print}' )
 #if storage > 3.8G
-if [ $storage -gt 38000000 ] ; then
+if [ $storage -gt 3800000 ] ; then
 	echo -e "${IGreen}Your storage space left is $(($storage /1000000))GB, you can install this application."
 else
 	echo -e "${IRed}Sorry, you don't have enough storage space to install this application. You need about 3.8GB of storage space."
