@@ -530,6 +530,9 @@ if __name__ == "__main__":
 
     @app.route('/',methods=["POST"])
     def http_request_delector():
+        modelName = request.headers.get('modelName')
+        showResult = request.headers.get('showResult')
+        app.logger.info(f"modelName:{modelName} showResult:{showResult}")
         request_base64_image = request.get_data()
         for i in range(3):
             if not trtapp[i].is_busy:
