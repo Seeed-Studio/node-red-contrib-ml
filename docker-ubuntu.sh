@@ -105,6 +105,9 @@ docker-compose --file docker-compose.yaml  up -d
 #install node-red theme package
 docker exec node-red-contrib-ml-node-red-1 bash -c "cd /data && npm install"
 
+# restart node-red-contrib-ml-node-red-1 container for the above changes to take into effect
+docker restart node-red-contrib-ml-node-red-1
+
 #no deamon
 #docker-compose --file docker/docker-compose.yaml  up
 echo -e  "${IYellow}#########################################################################"
