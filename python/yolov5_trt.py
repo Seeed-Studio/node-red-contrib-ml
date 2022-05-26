@@ -517,7 +517,7 @@ class TRTAPI(object):
 
 if __name__ == "__main__":
     trtapp = []
-    for _ in range(2):
+    for _ in range(3):
         trtapp.append(TRTAPI())
 
     @app.route('/health')
@@ -534,7 +534,7 @@ if __name__ == "__main__":
         showResult = request.headers.get('showResult')
         app.logger.info(f"modelName:{modelName} showResult:{showResult}")
         request_base64_image = request.get_data()
-        for i in range(2):
+        for i in range(3):
             if not trtapp[i].is_busy:
                 app.logger.info(f"current infer engine: {i} ")
                 return trtapp[i].run(request_base64_image)

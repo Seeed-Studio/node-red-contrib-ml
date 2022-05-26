@@ -24,67 +24,78 @@ if [ $storage -gt 3200000 ] ; then
 	echo -e "${IGreen}Your system space left is $storage, you can install this application."
 else
 	echo -e "${IRed}Sorry, you don't have enough storage space to install this docker."
-	echo -e "${IRed}But uninstalling nvidia-jetpack will free up space to install this docker, so please agree to uninstall nvidia-jetpack.y/n"
+	#echo -e "${IRed}But uninstalling nvidia-jetpack will free up space to install this docker, so please agree to uninstall nvidia-jetpack.y/n"
 	read yn
 	if [ $yn = "y" ] ; then
-		echo "${IGreen}start remove nvidia-jetpack"
-		sudo apt remove -y nvidia-jetpack
-		sudo apt autoremove -y
+		echo "${IGreen}start autoremove"
+		apt remove -y nvidia-jetpack
+		apt autoremove -y
 	else
 		exit 1
 	fi
 fi
 
-sudo apt update
+apt update
 
 if ! [ -x "$(command -v curl)" ]; then
-	sudo apt install curl
+	apt install curl
 fi
 
 
 if ! [ -x "$(command -v docker)" ]; then
-	sudo apt install docker
+	apt install docker
 fi
 
 if ! [ -x "$(command -v nvidia-docker)" ]; then
-	sudo apt install nvidia-docker2
+	apt install nvidia-docker2
 fi
 
 if ! [ -x "$(command -v docker-compose)" ]; then
 	curl -SL https://files.seeedstudio.com/wiki/reComputer/compose.tar.bz2  -o /tmp/compose.tar.bz2 
 	tar xvf /tmp/compose.tar.bz2 -C /usr/local/bin
-	sudo chmod +x  /usr/local/bin/docker-compose
+	chmod +x  /usr/local/bin/docker-compose
 fi
+
+#node-red setting
+mkdir -p $HOME/node-red
+cp node-red-config/*  $HOME/node-red
 
 
 
 echo -e  "${IBlue}#########################################################################"
 echo -e  "${IGreen}build docker base"
-sudo  docker build --rm --no-cache   --file docker/Dockerfile.base  --tag dev:base-build .
+docker build --rm --no-cache   --file docker/Dockerfile.base  --tag dev:base-build .
 echo -e  "${IYellow}#########################################################################"
 
 echo -e  "${IGreen}build docker dataloader"
-sudo  docker build --file docker/Dockerfile.dataloader --tag dev:dataloader-build .
+docker build --file docker/Dockerfile.dataloader --tag dev:dataloader-build .
 echo -e  "${IYellow}#########################################################################"
 
 echo -e  "${IGreen}build docker detection"
-sudo  docker build  --file docker/Dockerfile.detection --tag dev:detection-build .
+docker build  --file docker/Dockerfile.detection --tag dev:detection-build .
 echo -e  "${IYellow}#########################################################################"
 
-echo -e  "${IGreen}build docker node-red"
-sudo  docker build  --file docker/Dockerfile.node-red --tag dev:node-red-build .
-echo -e  "${IYellow}#########################################################################"
 
 # test
-# sudo nvidia-docker run -it -p 5550:5550  --device  /dev/video0  --name dataloader  dev:dataloader-build 
-# sudo nvidia-docker run -it  -p 5560:5560   --name detection  dev:detection-build
-# sudo nvidia-docker run -it -d --restart=always  -p 1880:1880  --name node-red   dev:node-red-build
+# nvidia-docker run -it -p 5550:5550  --device  /dev/video0  --name dataloader  dev:dataloader-build 
+# nvidia-docker run -it  -p 5560:5560   --name detection  dev:detection-build
 
 echo -e  "${IGreen}start all of docker"
 
 #deamon
-sudo  docker-compose --file docker/docker-compose.yaml  up -d
+docker-compose --file docker/docker-compose.yaml  up -d
+
+#install node-red theme package
+docker exec docker-node-red-1 bash -c "cd /data && npm install"
+
 
 #no deamon
-#sudo  docker-compose --file docker/docker-compose.yaml  up
+#docker-compose --file docker/docker-compose.yaml  up
 echo -e  "${IYellow}#########################################################################"
+
+
+#sudo docker login
+#sudo  docker tag  dev:dataloader-build baozhu/node-red-dataloader:v1.0
+#sudo  docker tag  dev:detection-build baozhu/node-red-detection:v1.0
+#sudo  docker push baozhu/node-red-detection:v1.0
+#sudo  docker push baozhu/node-red-dataloader:v1.0
