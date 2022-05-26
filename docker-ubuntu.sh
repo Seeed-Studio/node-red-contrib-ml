@@ -64,6 +64,10 @@ else
     		/usr/lib/aarch64-linux-gnu/libnvinfer*.a \
     		/usr/lib/aarch64-linux-gnu/libnvonnxparser*.a \
     		/usr/lib/aarch64-linux-gnu/libnvparsers*.a
+
+		# Remove additional 100MB
+		apt autoremove -y
+		apt clean
 	else
 		exit 1
 	fi
