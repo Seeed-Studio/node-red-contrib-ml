@@ -31,6 +31,7 @@ Open a web browser on PC, type `jetson_device_ip_address:1880` on the search box
 
 Press **DEPLOY** to see it in action!
 
+https://user-images.githubusercontent.com/20147381/170643573-2a2d70c2-7e0b-430b-b66c-ee56ade3116f.mp4
 
 **Note:** Here the pre-loaded AI model is trained using the [COCO dataset](https://cocodataset.org/#home) and you can detect 80 different objects.
 
