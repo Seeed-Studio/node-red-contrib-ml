@@ -5,8 +5,6 @@ Now you can get started with AI vision at the edge in just **THREE STEPS** with 
 ## Prerequisites
 
 - NVIDIA Jetson device
-- USB webcam
-- PC (Windows/Mac/Linux)
 
 ## Getting Started
 
@@ -33,8 +31,7 @@ Press **DEPLOY** to see it in action!
 
 https://user-images.githubusercontent.com/20147381/170643573-2a2d70c2-7e0b-430b-b66c-ee56ade3116f.mp4
 
-**Note:** Here the pre-loaded AI model is trained using the [COCO dataset](https://cocodataset.org/#home) and you can detect 80 different objects.
 
 ## Learn more
 
-For a more detailed step-by-step guide on using Node-RED for Edge AI Vision, please refer to [this wiki](https://wiki.seeedstudio.com/No-code-Edge-AI-Tool/).
+For a more detailed step-by-step guide on using Node-RED for Edge AI Vision, Please pay attention to this software.
