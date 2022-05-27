@@ -12,7 +12,7 @@ Now you can get started with AI vision at the edge in just **THREE STEPS** with 
 
 ### Step 1 - Install
 
-SSH into Jetson device using a PC, clone this GitHub repo and run the installer
+Clone this GitHub repo and run the installer
 
 ```sh
 git clone https://github.com/Seeed-Studio/node-red-contrib-ml
@@ -21,7 +21,7 @@ cd node-red-contrib-ml && sudo ./docker-ubuntu.sh
 
 ### Step 2 - Configure
 
-Open a web browser on PC, type `jetson_device_ip_address:1880` on the search box, drag and drop blocks and connect them as follows 
+Open a web browser, type `jetson_device_ip_address:1880` on the search box, drag and drop blocks and connect them as follows 
 
 <p style=":center"><img src="https://files.seeedstudio.com/wiki/node-red/nodered-UI-overview-2.png" /></p>
 
@@ -31,7 +31,6 @@ Press **DEPLOY** to see it in action!
 
 https://user-images.githubusercontent.com/20147381/170643573-2a2d70c2-7e0b-430b-b66c-ee56ade3116f.mp4
 
-
 ## Learn more
 
-For a more detailed step-by-step guide on using Node-RED for Edge AI Vision, Please pay attention to this software.
+For a more detailed step-by-step guide on using Node-RED for Edge AI Vision, please pay attention to this software.
