@@ -84,6 +84,10 @@ class DataLoadderThread(threading.Thread):
         self.resolution = None
         self.device = None
         self.rtsp = None
+        self.pre_input = None
+        self.flag = True
+        self.running = True
+        # self._stop_event = threading.Event()
         self.screen_table = {'3840': {'h':3840,'w':2160}, 
                 '2560': {'h':2560,'w':1600}, 
                 '1920': {'h':1920,'w':1080}, 
@@ -95,11 +99,27 @@ class DataLoadderThread(threading.Thread):
 
     # define your own run method
     def run(self):
-        self.start_streams()
+        print("running is begin!!!")
+        while self.running:
+            self.start_streams()
+
+        print("running is over!!!")
+
     def set_args(self,resolution,device,rtsp):
         self.resolution = resolution
         self.device = device
         self.rtsp = rtsp
+
+    def stop(self):
+        self.running = False
+        # LoadStreams(flag=self.running)
+
+    def restart(self):
+        self.is_init = False
+        self.is_ok = False
+        self.running = True
+        # self.data = generate_image_with_text(f"changing camera...")
+        self.run()
 
     def start_streams(self):
         port, source = parse_args()
@@ -123,6 +143,7 @@ class DataLoadderThread(threading.Thread):
                                                                                 self.screen_table[self.resolution]['w'])
                     app.logger.info(source)
                     print(source)
+                    self.pre_input = [self.resolution, self.device, self.rtsp]
                     dataloader = LoadStreams(source)  # Webcam
                     self.is_init = True
                 except Exception as ex:
@@ -140,6 +161,8 @@ class DataLoadderThread(threading.Thread):
         try:
             counter = 0
             for path, im, im0s, vid_cap, s in dataloader:
+                # if counter % 30 == 0:
+                #     print(f'path is : {path}')
                 for img in im0s:
                     # img = cv2.resize(img, (1280,720), interpolation=cv2.INTER_LINEAR)
                     ret_code, jpg_buffer = cv2.imencode(
@@ -184,7 +207,17 @@ if __name__ == "__main__":
         resolution = request.args.get("resolution")
         device = request.args.get("localAddress")
         rtsp = request.args.get("rtspUrl")
+        cur_input = [resolution, device, rtsp]
         dataloader.set_args(resolution,device,rtsp)
+        # print(f'tem_input is {cur_input}')
+        # print(f'pre_input is {dataloader.pre_input}')
+        # print(dataloader.getName())
+        if dataloader.pre_input != cur_input and dataloader.pre_input:
+            # dataloader.join(2)
+            dataloader.stop()
+            print(f'para running is: {dataloader.running}')
+            print(dataloader.is_alive())
+            dataloader.restart()
     
         if dataloader.is_ok:
             return base64.b64encode(dataloader.data), 200, [("ok",1)] 
