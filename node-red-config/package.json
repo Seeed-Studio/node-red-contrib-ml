@@ -5,6 +5,6 @@
     "private": true,
     "dependencies": {
         "@node-red-contrib-themes/theme-collection": "^2.2.3",
-        "node-red-seeed-recomputer": "git+https://iteam-gitlab.seeed.cn/node-red-public-libs/node-red-seeed-recomputer.git"
+        "node-red-seeed-recomputer": "git+https://github.com/Seeed-Studio/node-red-seeed-recomputer.git"
     }
 }
