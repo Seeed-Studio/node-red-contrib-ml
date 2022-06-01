@@ -1,0 +1,26 @@
+version: "3.9"  # optional since v1.27.0
+services:
+  node-red:
+    image: nodered/node-red:2.2.2
+    restart: always
+    network_mode: "host"
+    volumes:
+      - "$HOME/node-red:/data"
+    user: "0"
+    ports:
+      - "1880:1880"
+  dataloader:
+    image: baozhu/node-red-dataloader:v1.0
+    restart: always
+    runtime: nvidia
+    network_mode: "host"
+    ports:
+      - "5550:5550"
+  detection:
+    image: baozhu/node-red-detection:v1.0
+    restart: always
+    runtime: nvidia
+    network_mode: "host"
+    ports:
+      - "5560:5560"
+    

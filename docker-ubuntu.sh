@@ -12,29 +12,6 @@ ICyan='\033[0;96m'        # Cyan
 IWhite='\033[0;97m'       # White
 
 
-
-if ! [ $(id -u) = 0 ] ; then
-	echo "$0 must be run as sudo user or root"
-	exit 1
-fi
-
-storage=$(df   | awk '{ print  $4  } ' | awk 'NR==2{print}' )
-#if storage > 3G
-if [ $storage -gt 3200000 ] ; then
-	echo -e "${IGreen}Your system space left is $storage, you can install this application."
-else
-	echo -e "${IRed}Sorry, you don't have enough storage space to install this docker."
-	#echo -e "${IRed}But uninstalling nvidia-jetpack will free up space to install this docker, so please agree to uninstall nvidia-jetpack.y/n"
-	read yn
-	if [ $yn = "y" ] ; then
-		echo "${IGreen}start autoremove"
-		apt remove -y nvidia-jetpack
-		apt autoremove -y
-	else
-		exit 1
-	fi
-fi
-
 apt update
 
 if ! [ -x "$(command -v curl)" ]; then
@@ -59,8 +36,6 @@ fi
 #node-red setting
 mkdir -p $HOME/node-red
 cp node-red-config/*  $HOME/node-red
-
-
 
 echo -e  "${IBlue}#########################################################################"
 echo -e  "${IGreen}build docker base"
