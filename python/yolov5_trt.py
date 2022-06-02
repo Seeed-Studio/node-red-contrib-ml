@@ -30,6 +30,8 @@ from dataloaders import LoadImages,LoadWebcam,LoadStreams
 import logging
 # logging.getLogger('werkzeug').disabled = True
 
+from video_frame_control import FrameBuffer,create_thread
+
 yolov5_wrapper = None
 app = Flask(__name__)
 host = ('0.0.0.0', 5560)
@@ -514,9 +516,15 @@ class TRTAPI(object):
             self.yolov5.destroy()
             return "err"
 
+@create_thread
+def getPost(frame_buffer,request_base64_image):
+    frame_buffer.smart_append(request_base64_image)
 
 if __name__ == "__main__":
     trtapp = []
+    frame_buffer = FrameBuffer()
+    frame_buffer.size=5
+
     for _ in range(3):
         trtapp.append(TRTAPI())
 
@@ -534,11 +542,13 @@ if __name__ == "__main__":
         showResult = request.headers.get('showResult')
         app.logger.info(f"modelName:{modelName} showResult:{showResult}")
         request_base64_image = request.get_data()
+        # frame_buffer.smart_append(request_base64_image)
+        # getPost(frame_buffer,request_base64_image)
+        frame_buffer.smart_append(request_base64_image)
         for i in range(3):
             if not trtapp[i].is_busy:
                 app.logger.info(f"current infer engine: {i} ")
-                return trtapp[i].run(request_base64_image)
-        return "Nonthing", 200, [("vision", str({"boxes":[],"scores":[],"labels":[]})),("busy",1)] 
-
+                return trtapp[i].run(frame_buffer.pop(0))
+        return "Nonthing", 200, [("vision", str({"boxes":[],"scores":[],"labels":[]})),("busy",1)]
 
     app.run(host="0.0.0.0", port=5560)

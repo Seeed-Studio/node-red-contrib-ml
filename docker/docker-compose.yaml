@@ -14,8 +14,6 @@ services:
     restart: always
     runtime: nvidia
     network_mode: "host"
-    devices:
-    - "/dev/video0:/dev/video0"
     ports:
       - "5550:5550"
   detection:
