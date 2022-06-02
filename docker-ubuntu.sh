@@ -28,7 +28,8 @@ if ! [ -x "$(command -v nvidia-docker)" ]; then
 fi
 
 if ! [ -x "$(command -v docker-compose)" ]; then
-	curl -SL https://files.seeedstudio.com/wiki/reComputer/compose.tar.bz2  -o /tmp/compose.tar.bz2 
+	#curl -SL https://files.seeedstudio.com/wiki/reComputer/compose.tar.bz2  -o /tmp/compose.tar.bz2 
+	cp $HOME/compose.tar.bz2 /tmp/compose.tar.bz2 
 	tar xvf /tmp/compose.tar.bz2 -C /usr/local/bin
 	chmod +x  /usr/local/bin/docker-compose
 fi
