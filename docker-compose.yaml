@@ -10,14 +10,14 @@ services:
     ports:
       - "1880:1880"
   dataloader:
-    image: dev:dataloader-build
+    image: baozhu/node-red-dataloader:v1.0
     restart: always
     runtime: nvidia
     network_mode: "host"
     ports:
       - "5550:5550"
   detection:
-    image: dev:detection-build
+    image: baozhu/node-red-detection:v1.0
     restart: always
     runtime: nvidia
     network_mode: "host"
