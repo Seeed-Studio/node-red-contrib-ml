@@ -12,6 +12,70 @@ ICyan='\033[0;96m'        # Cyan
 IWhite='\033[0;97m'       # White
 
 
+if ! [ $(id -u) = 0 ] ; then
+	echo "$0 must be run as sudo user or root"
+	exit 1
+fi
+
+storage=$(df   | awk '{ print  $4  } ' | awk 'NR==2{print}' )
+#if storage > 3.8G
+if [ $storage -gt 3800000 ] ; then
+	echo -e "${IGreen}Your storage space left is $(($storage /1000000))GB, you can install this application."
+else
+	echo -e "${IRed}Sorry, you don't have enough storage space to install this application. You need about 3.8GB of storage space."
+	echo -e "${IYellow}However, you can regain about 3.8GB of storage space by performing the following:"
+	echo -e "${IYellow}-Remove unnecessary packages (~100MB)"
+	echo -e "${IYellow}-Clean up apt cache (~1.6GB)"
+	echo -e "${IYellow}-Remove thunderbird, libreoffice and related packages (~400MB)"
+	echo -e "${IYellow}-Remove cuda, cudnn, tensorrt, visionworks and deepstream samples (~800MB)"
+	echo -e "${IYellow}-Remove local repos for cuda, visionworks, linux-headers (~100MB)"
+	echo -e "${IYellow}-Remove GUI (~400MB)"
+	echo -e "${IYellow}-Remove Static libraries (~400MB)"
+	echo -e "${IRed}So, please agree to uninstall the above. Press [y/n]"
+	read yn
+	if [ $yn = "y" ] ; then
+		echo "${IGreen}starting to remove the above-mentioned"
+		# Remove unnecessary packages, clean apt cache and remove thunderbird, libreoffice
+		apt update
+		apt autoremove -y
+		apt clean
+		apt remove thunderbird libreoffice-* -y
+
+		# Remove samples
+		rm -rf /usr/local/cuda/samples \
+    		/usr/src/cudnn_samples_* \
+    		/usr/src/tensorrt/data \
+    		/usr/src/tensorrt/samples \
+    		/usr/share/visionworks* ~/VisionWorks-SFM*Samples \
+    		/opt/nvidia/deepstream/deepstream*/samples	
+
+		# Remove local repos
+		apt purge cuda-repo-l4t-*local* libvisionworks-*repo -y
+		rm /etc/apt/sources.list.d/cuda*local* /etc/apt/sources.list.d/visionworks*repo*
+		rm -rf /usr/src/linux-headers-*
+
+		# Remove GUI
+		apt-get purge gnome-shell ubuntu-wallpapers-bionic light-themes chromium-browser* libvisionworks libvisionworks-sfm-dev -y
+		apt-get autoremove -y
+		apt clean -y
+
+		# Remove Static libraries
+		rm -rf /usr/local/cuda/targets/aarch64-linux/lib/*.a \
+    		/usr/lib/aarch64-linux-gnu/libcudnn*.a \
+    		/usr/lib/aarch64-linux-gnu/libnvcaffe_parser*.a \
+    		/usr/lib/aarch64-linux-gnu/libnvinfer*.a \
+    		/usr/lib/aarch64-linux-gnu/libnvonnxparser*.a \
+    		/usr/lib/aarch64-linux-gnu/libnvparsers*.a
+
+		# Remove additional 100MB
+		apt autoremove -y
+		apt clean
+	else
+		exit 1
+	fi
+fi
+
+
 apt update
 
 if ! [ -x "$(command -v curl)" ]; then
