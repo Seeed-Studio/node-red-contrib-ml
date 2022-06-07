@@ -58,13 +58,17 @@ def generate_image_with_text(text):
     img = np.ones(shape=(480,640,3), dtype=np.int16)
     y0, dy = 10, 10
     #auto line , 35 ch new line
-    for i, line in enumerate(re.findall(r'.{77}', text)):
+    text_list = re.findall(r'.{64}', text)
+    if (len(text) % 64 != 0):
+        text_list.append(text[64 * (len(text) // 64):len(text)])
+    for i, line in enumerate(text_list):
         y = y0 + i*dy
         # cv2.putText(img, line, (0, y ), cv2.FONT_HERSHEY_SIMPLEX, 1, 2)
         cv2.putText(img=img, text=line, org=(0, y), fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=1, color=(0, 255, 0),thickness=1)
 
     # cv2.putText(img=img, text=text, org=(0, 30), fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1, color=(0, 255, 0),thickness=1)
-    ret_code, jpg_buffer = cv2.imencode(".jpg", img, [int(cv2.IMWRITE_JPEG_QUALITY)])
+    ret_code, jpg_buffer = cv2.imencode(".jpg", img, [int(cv2.IMWRITE_JPEG_QUALITY), 95])
+
     return jpg_buffer
 
 
@@ -112,12 +116,6 @@ class DataLoadderThread(threading.Thread):
         # sleep(0.1)  # time to interrupt thread
         # self.reset = False
 
-    def restart(self):
-        self.is_init = False
-        self.is_ok = False
-        self.running = True
-        # self.data = generate_image_with_text(f"changing camera...")
-        self.run()
 
     def start_streams(self):
         port, source = parse_args()
@@ -158,8 +156,6 @@ class DataLoadderThread(threading.Thread):
         try:
             counter = 0
             for path, im, im0s, vid_cap, s in dataloader:
-                # if counter % 30 == 0:
-                #     print(f'path is : {path}')
                 for img in im0s:
                     if self.reset:
                         dataloader.killed = True
@@ -182,6 +178,11 @@ class DataLoadderThread(threading.Thread):
                     # sleep(0.05)
                     counter = counter + 1
 
+                if not dataloader.camera_exist: 
+                    self.data = generate_image_with_text(f"Video stream unresponsive, please check your IP camera connection. " 
+                                                            f"Then kill the docker container docker-dataloader-1 and restart it.")
+                    self.is_ok = False
+            
         except (KeyboardInterrupt, SystemExit):
             print('Exit due to keyboard interrupt')
         except Exception as ex:
@@ -208,11 +209,7 @@ if __name__ == "__main__":
         resolution = request.args.get("resolution")
         device = request.args.get("localAddress")
         rtsp = request.args.get("rtspUrl")
-        cur_input = [resolution, device, rtsp]
         dataloader.set_args(resolution,device,rtsp)
-        # print(f'tem_input is {cur_input}')
-        # print(f'pre_input is {dataloader.pre_input}')
-        # print(dataloader.getName())
         if dataloader.reset:
             dataloader.stop()
             dataloader.join()
