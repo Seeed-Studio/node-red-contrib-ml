@@ -263,7 +263,6 @@ class LoadStreams:
             if not cap.grab():
                 self.camera_exist = False
                 raise Exception ('Video stream unresponsive, please check your IP camera connection.')
-            # time.sleep(1 / self.fps[i])  # wait time
         cap.release()  # close camera, only self.killed is True
 
     def __iter__(self):
