@@ -57,11 +57,9 @@ def parse_args():
 def generate_image_with_text(text):
     img = np.ones(shape=(480,640,3), dtype=np.int16)
     y0, dy = 10, 10
-    #auto line , 35 ch new line
-    text_list = re.findall(r'.{64}', text)
-    if (len(text) % 64 != 0):
-        text_list.append(text[64 * (len(text) // 64):len(text)])
-    for i, line in enumerate(text_list):
+    #auto line , 64 words new line
+    text = text + "                                                                " # retain the last line less than 64 words.
+    for i, line in enumerate(re.findall(r'.{64}', text)):
         y = y0 + i*dy
         # cv2.putText(img, line, (0, y ), cv2.FONT_HERSHEY_SIMPLEX, 1, 2)
         cv2.putText(img=img, text=line, org=(0, y), fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=1, color=(0, 255, 0),thickness=1)
