@@ -29,7 +29,13 @@ Open a web browser, type `jetson_device_ip_address:1880` on the search box, drag
 
 Press **DEPLOY** to see it in action!
 
+## Application 1
+
 https://user-images.githubusercontent.com/20147381/170643573-2a2d70c2-7e0b-430b-b66c-ee56ade3116f.mp4
+
+## Application 2
+
+https://user-images.githubusercontent.com/20147381/172834524-256d3f4b-3721-4ca8-8c64-b847988c04ac.mp4
 
 ## Learn more
 
