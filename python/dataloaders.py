@@ -194,6 +194,8 @@ class LoadStreams:
         self.mode = 'stream'
         self.img_size = img_size
         self.stride = stride
+        self.killed = False
+        self.camera_exist = True
 
         if os.path.isfile(sources):
             with open(sources) as f:
@@ -246,7 +248,7 @@ class LoadStreams:
     def update(self, i, cap, stream):
         # Read stream `i` frames in daemon thread
         n, f, read = 0, self.frames[i], 1  # frame number, frame array, inference every 'read' frame
-        while cap.isOpened() and n < f:
+        while cap.isOpened() and n < f and not self.killed:
             n += 1
             # _, self.imgs[index] = cap.read()
             cap.grab()
@@ -254,11 +256,14 @@ class LoadStreams:
                 success, im = cap.retrieve()
                 if success:
                     self.imgs[i] = im
-                else:
-                    LOGGER.warning('WARNING: Video stream unresponsive, please check your IP camera connection.')
-                    self.imgs[i] = np.zeros_like(self.imgs[i])
-                    cap.open(stream)  # re-open stream if signal was lost
-            time.sleep(1 / self.fps[i])  # wait time
+                # else:
+                #     LOGGER.warning('WARNING: Video stream unresponsive, please check your IP camera connection.')
+                #     self.imgs[i] = np.zeros_like(self.imgs[i])
+                #     cap.open(stream)  # re-open stream if signal was lost
+            if not cap.grab():
+                self.camera_exist = False
+                raise Exception ('Video stream unresponsive, please check your IP camera connection.')
+        cap.release()  # close camera, only self.killed is True
 
     def __iter__(self):
         self.count = -1

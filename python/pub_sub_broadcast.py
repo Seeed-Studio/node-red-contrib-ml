@@ -57,14 +57,16 @@ def parse_args():
 def generate_image_with_text(text):
     img = np.ones(shape=(480,640,3), dtype=np.int16)
     y0, dy = 10, 10
-    #auto line , 35 ch new line
-    for i, line in enumerate(re.findall(r'.{77}', text)):
+    #auto line , 64 words new line
+    text = text + "                                                                " # retain the last line less than 64 words.
+    for i, line in enumerate(re.findall(r'.{64}', text)):
         y = y0 + i*dy
         # cv2.putText(img, line, (0, y ), cv2.FONT_HERSHEY_SIMPLEX, 1, 2)
         cv2.putText(img=img, text=line, org=(0, y), fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=1, color=(0, 255, 0),thickness=1)
 
     # cv2.putText(img=img, text=text, org=(0, 30), fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1, color=(0, 255, 0),thickness=1)
-    ret_code, jpg_buffer = cv2.imencode(".jpg", img, [int(cv2.IMWRITE_JPEG_QUALITY)])
+    ret_code, jpg_buffer = cv2.imencode(".jpg", img, [int(cv2.IMWRITE_JPEG_QUALITY), 95])
+
     return jpg_buffer
 
 
@@ -84,6 +86,8 @@ class DataLoadderThread(threading.Thread):
         self.resolution = None
         self.device = None
         self.rtsp = None
+        self.pre_input = None
+        self.reset = False
         self.screen_table = {'3840': {'h':3840,'w':2160}, 
                 '2560': {'h':2560,'w':1600}, 
                 '1920': {'h':1920,'w':1080}, 
@@ -96,10 +100,20 @@ class DataLoadderThread(threading.Thread):
     # define your own run method
     def run(self):
         self.start_streams()
+
     def set_args(self,resolution,device,rtsp):
         self.resolution = resolution
         self.device = device
         self.rtsp = rtsp
+        if self.pre_input and self.pre_input != [resolution, device, rtsp]:
+            self.reset = True
+        self.pre_input = [resolution, device, rtsp]
+
+    def stop(self):
+        self.reset = True
+        # sleep(0.1)  # time to interrupt thread
+        # self.reset = False
+
 
     def start_streams(self):
         port, source = parse_args()
@@ -141,6 +155,9 @@ class DataLoadderThread(threading.Thread):
             counter = 0
             for path, im, im0s, vid_cap, s in dataloader:
                 for img in im0s:
+                    if self.reset:
+                        dataloader.killed = True
+                        break
                     # img = cv2.resize(img, (1280,720), interpolation=cv2.INTER_LINEAR)
                     ret_code, jpg_buffer = cv2.imencode(
                         ".jpg", img, [int(cv2.IMWRITE_JPEG_QUALITY), self.jpeg_quality ])
@@ -159,6 +176,11 @@ class DataLoadderThread(threading.Thread):
                     # sleep(0.05)
                     counter = counter + 1
 
+                if not dataloader.camera_exist: 
+                    self.data = generate_image_with_text(f"Video stream unresponsive, please check your IP camera connection. " 
+                                                            f"Then kill the docker container docker-dataloader-1 and restart it.")
+                    self.is_ok = False
+            
         except (KeyboardInterrupt, SystemExit):
             print('Exit due to keyboard interrupt')
         except Exception as ex:
@@ -181,10 +203,18 @@ if __name__ == "__main__":
 
     @app.route('/')
     def hello():
+        global dataloader
         resolution = request.args.get("resolution")
         device = request.args.get("localAddress")
         rtsp = request.args.get("rtspUrl")
         dataloader.set_args(resolution,device,rtsp)
+        if dataloader.reset:
+            dataloader.stop()
+            dataloader.join()
+            # print(dataloader.is_alive())
+            dataloader = DataLoadderThread()
+            dataloader.start()
+            # print(dataloader.is_alive())
     
         if dataloader.is_ok:
             return base64.b64encode(dataloader.data), 200, [("ok",1)] 
