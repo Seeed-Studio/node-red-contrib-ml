@@ -11,11 +11,14 @@ services:
       - "1880:1880"
   dataloader:
     image: dev:dataloader-build
+    environment:
+            - UDEV=1
     restart: always
     runtime: nvidia
     network_mode: "host"
+    privileged: true
     devices:
-    - "/dev/video0:/dev/video0"
+    - "/dev:/dev"
     ports:
       - "5550:5550"
   detection:
