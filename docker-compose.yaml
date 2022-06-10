@@ -17,6 +17,7 @@ services:
     privileged: true
     devices:
     - "/dev:/dev"
+    - "/var/run/udev:/var/run/udev"
     ports:
       - "5550:5550"
   detection:
