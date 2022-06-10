@@ -10,16 +10,17 @@ services:
     ports:
       - "1880:1880"
   dataloader:
-    image: baozhu/node-red-dataloader:v1.0
+    image: baozhu/node-red-dataloader:v1.1
     restart: always
     runtime: nvidia
     network_mode: "host"
+    privileged: true
     devices:
-    - "/dev/video0:/dev/video0"
+    - "/dev:/dev"
     ports:
       - "5550:5550"
   detection:
-    image: baozhu/node-red-detection:v1.0
+    image: baozhu/node-red-detection:v1.1
     restart: always
     runtime: nvidia
     network_mode: "host"
